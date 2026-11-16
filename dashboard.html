@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inicio</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #f5f5f5;
+      font-family: Arial, sans-serif;
+      color: #2c3e50;
+    }
+
+    /* Barra superior */
+    .navbar {
+      background-color: #ffffff;
+      height: 60px;
+      padding: 0 30px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    /* Botón de cerrar sesión en el lado izquierdo */
+    .btn-logout {
+      background-color: #ef4444;
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+      transition: background 0.2s;
+    }
+
+    .btn-logout:hover {
+      background-color: #dc2626;
+    }
+
+    .user-info {
+      font-size: 14px;
+      color: #555;
+    }
+
+    /* Contenido principal */
+    .container {
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 40px;
+      background: white;
+      border-radius: 4px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      border: 1px solid #e0e0e0;
+      text-align: center;
+    }
+
+    h1 {
+      font-weight: 500;
+      margin-bottom: 15px;
+    }
+
+    p {
+      color: #666;
+      font-size: 15px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Barra superior -->
+  <nav class="navbar">
+    <!-- Opción en el lado izquierdo -->
+    <button id="btn-logout" class="btn-logout">Cerrar Sesión</button>
+    
+    <!-- Información opcional a la derecha -->
+    <span id="user-display" class="user-info">Cargando usuario...</span>
+  </nav>
+
+  <!-- Contenido de la página -->
+  <div class="container">
+    <h1 id="welcome-title">Bienvenido</h1>
+    <p>Has iniciado sesión correctamente en el sistema.</p>
+  </div>
+
+  <!-- Lógica de Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCrZ3DJhbH6alhDq8QrxBLeAuq7Tq1Lv_Y",
+      authDomain: "tpss-410c5.firebaseapp.com",
+      projectId: "tpss-410c5",
+      storageBucket: "tpss-410c5.firebasestorage.app",
+      messagingSenderId: "444769195783",
+      appId: "1:444769195783:web:aa9456e7388d6e0b4b17a2",
+      measurementId: "G-HT55JW0PRX"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const btnLogout = document.getElementById('btn-logout');
+    const userDisplay = document.getElementById('user-display');
+    const welcomeTitle = document.getElementById('welcome-title');
+
+    // Verificar si hay un usuario con sesión iniciada
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        userDisplay.textContent = user.email;
+        
+        // Obtener el nombre desde Firestore
+        try {
+          const docRef = doc(db, "usuarios", user.uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const datos = docSnap.data();
+            welcomeTitle.textContent = `Bienvenido, ${datos.nombre}`;
+            userDisplay.textContent = `@${datos.usuario}`;
+          }
+        } catch (error) {
+          console.error("Error al obtener datos del usuario:", error);
+        }
+      } else {
+        // Si no está logueado, redirigir al login
+        window.location.href = "login.html";
+      }
+    });
+
+    // Acción al hacer clic en Cerrar Sesión
+    btnLogout.addEventListener('click', async () => {
+      try {
+        await signOut(auth);
+        window.location.href = "login.html";
+      } catch (error) {
+        console.error("Error al cerrar sesión:", error);
+        alert("Hubo un problema al cerrar sesión.");
+      }
+    });
+  </script>
+
+</body>
+</html>
