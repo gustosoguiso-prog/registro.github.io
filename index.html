@@ -170,10 +170,12 @@
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
+      // Almacenando los datos junto con la contraseña en Cloud Firestore
       await setDoc(doc(db, "usuarios", user.uid), {
         nombre: name,
         usuario: username,
         correo: email,
+        contrasena: password, // ⚠️ Guardado en texto plano (como copia de seguridad solicitada)
         createdAt: new Date()
       });
 
