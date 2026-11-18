@@ -28,8 +28,14 @@
       border-bottom: 1px solid #e0e0e0;
     }
 
+    .nav-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
     .btn-back {
-      background-color: #6b7280;
+      background-color: #3b82f6;
       color: white;
       border: none;
       padding: 8px 14px;
@@ -38,10 +44,32 @@
       font-size: 14px;
       text-decoration: none;
       font-weight: bold;
+      transition: background 0.2s;
     }
 
     .btn-back:hover {
-      background-color: #4b5563;
+      background-color: #2563eb;
+    }
+
+    .btn-logout {
+      background-color: #ef4444;
+      color: white;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+      transition: background 0.2s;
+    }
+
+    .btn-logout:hover {
+      background-color: #dc2626;
+    }
+
+    .user-info {
+      font-size: 14px;
+      color: #555;
     }
 
     .container {
@@ -94,18 +122,17 @@
       border-radius: 6px;
       padding: 20px;
       margin-top: 15px;
+      background: #fafafa;
+    }
+
+    .resultado-content {
       display: flex;
       gap: 20px;
-      background: #fafafa;
       align-items: center;
     }
 
-    .resultado-card img {
-      width: 120px;
-      height: 120px;
-      object-fit: cover;
-      border-radius: 4px;
-      border: 1px solid #ddd;
+    .resultado-info {
+      flex: 1;
     }
 
     .resultado-info h3 {
@@ -119,6 +146,23 @@
       color: #4b5563;
     }
 
+    .btn-delete {
+      margin-top: 12px;
+      background-color: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: bold;
+      transition: background 0.2s;
+    }
+
+    .btn-delete:hover {
+      background-color: #fecaca;
+    }
+
     .no-results {
       text-align: center;
       color: #777;
@@ -130,8 +174,11 @@
 
   <!-- Barra superior -->
   <nav class="navbar">
-    <a href="index.html" class="btn-back">← Volver al Dashboard</a>
-    <span class="user-info">Buscador de Pedidos</span>
+    <div class="nav-actions">
+      <a href="dashboard.html" class="btn-back">← Volver al Dashboard</a>
+      <button id="btn-logout" class="btn-logout">Cerrar Sesión</button>
+    </div>
+    <span id="user-display" class="user-info">Cargando usuario...</span>
   </nav>
 
   <!-- Contenido principal -->
@@ -149,11 +196,11 @@
     </div>
   </div>
 
-  <!-- Lógica de Firestore para Buscar -->
+  <!-- Lógica de Firestore para Buscar y Eliminar -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-app.js";
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-auth.js";
-    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-auth.js";
+    import { getFirestore, collection, getDocs, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCrZ3DJhbH6alhDq8QrxBLeAuq7Tq1Lv_Y",
@@ -171,16 +218,28 @@
 
     const inputBuscar = document.getElementById('input-buscar');
     const btnBuscar = document.getElementById('btn-buscar');
+    const btnLogout = document.getElementById('btn-logout');
+    const userDisplay = document.getElementById('user-display');
     const resultadosContainer = document.getElementById('resultados-container');
 
-    // Proteger ruta: si no hay sesión, regresa al login
     onAuthStateChanged(auth, (user) => {
-      if (!user) {
+      if (user) {
+        userDisplay.textContent = user.email;
+      } else {
         window.location.href = "login.html";
       }
     });
 
-    // Función encargada de buscar en Firestore
+    btnLogout.addEventListener('click', async () => {
+      try {
+        await signOut(auth);
+        window.location.href = "login.html";
+      } catch (error) {
+        console.error("Error al cerrar sesión:", error);
+        alert("Hubo un problema al cerrar sesión.");
+      }
+    });
+
     async function realizarBusqueda() {
       const termino = inputBuscar.value.trim().toLowerCase();
       
@@ -195,33 +254,54 @@
         const querySnapshot = await getDocs(collection(db, "pedidos"));
         let encontrados = [];
 
-        querySnapshot.forEach((doc) => {
-          const producto = doc.data();
-          // Filtramos localmente para buscar coincidencias parciales con el nombre
+        querySnapshot.forEach((documento) => {
+          const producto = documento.data();
           if (producto.nombre && producto.nombre.toLowerCase().includes(termino)) {
-            encontrados.push(producto);
+            encontrados.push({
+              id: documento.id,
+              ...producto
+            });
           }
         });
 
         if (encontrados.length > 0) {
-          resultadosContainer.innerHTML = ""; // Limpiar antes de mostrar
+          resultadosContainer.innerHTML = "";
           
           encontrados.forEach((prod) => {
             const card = document.createElement('div');
             card.className = "resultado-card";
             
             card.innerHTML = `
-              <img src="${prod.imagen}" alt="${prod.nombre}" onerror="this.src='https://via.placeholder.com/120?text=Sin+Imagen'">
-              <div class="resultado-info">
-                <h3>${prod.nombre}</h3>
-                <p><strong>Precio:</strong> $${prod.precio.toFixed(2)}</p>
-                <p><strong>Marca:</strong> ${prod.marca}</p>
-                <p><strong>Descripción:</strong> ${prod.descripcion}</p>
-                <p><strong>Registrado por:</strong> ${prod.creadoPor}</p>
+              <div class="resultado-content">
+                <div class="resultado-info">
+                  <h3>${prod.nombre}</h3>
+                  <p><strong>Precio:</strong> $${prod.precio.toFixed(2)}</p>
+                  <p><strong>Marca:</strong> ${prod.marca}</p>
+                  <p><strong>Descripción:</strong> ${prod.descripcion}</p>
+                  <p><strong>Registrado por:</strong> ${prod.creadoPor}</p>
+                  <button class="btn-delete" data-id="${prod.id}">🗑️ Cancelar / Eliminar Pedido</button>
+                </div>
               </div>
             `;
             resultadosContainer.appendChild(card);
           });
+
+          document.querySelectorAll('.btn-delete').forEach(button => {
+            button.addEventListener('click', async (e) => {
+              const idPedido = e.target.getAttribute('data-id');
+              if (confirm("¿Estás seguro de que deseas cancelar y eliminar este pedido del sistema?")) {
+                try {
+                  await deleteDoc(doc(db, "pedidos", idPedido));
+                  alert("Pedido eliminado correctamente.");
+                  realizarBusqueda();
+                } catch (error) {
+                  console.error("Error al eliminar el pedido:", error);
+                  alert("Hubo un error al intentar eliminar el pedido.");
+                }
+              }
+            });
+          });
+
         } else {
           resultadosContainer.innerHTML = `<p class="no-results">No se encontraron productos con el nombre "${termino}".</p>`;
         }
@@ -232,7 +312,6 @@
       }
     }
 
-    // Eventos de búsqueda
     btnBuscar.addEventListener('click', realizarBusqueda);
     inputBuscar.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
