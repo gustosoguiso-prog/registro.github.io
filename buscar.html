@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Buscar Productos</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #f5f5f5;
+      font-family: Arial, sans-serif;
+      color: #2c3e50;
+    }
+
+    .navbar {
+      background-color: #ffffff;
+      height: 60px;
+      padding: 0 30px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .btn-back {
+      background-color: #6b7280;
+      color: white;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .btn-back:hover {
+      background-color: #4b5563;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 40px auto;
+      padding: 30px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      border: 1px solid #e0e0e0;
+    }
+
+    h1 {
+      font-weight: 500;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .search-box {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 25px;
+    }
+
+    .search-box input {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .search-box button {
+      background-color: #3b82f6;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .search-box button:hover {
+      background-color: #2563eb;
+    }
+
+    /* Resultados de la búsqueda */
+    .resultado-card {
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 20px;
+      margin-top: 15px;
+      display: flex;
+      gap: 20px;
+      background: #fafafa;
+      align-items: center;
+    }
+
+    .resultado-card img {
+      width: 120px;
+      height: 120px;
+      object-fit: cover;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+    }
+
+    .resultado-info h3 {
+      margin-bottom: 8px;
+      color: #1e3a8a;
+    }
+
+    .resultado-info p {
+      margin-bottom: 5px;
+      font-size: 14px;
+      color: #4b5563;
+    }
+
+    .no-results {
+      text-align: center;
+      color: #777;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Barra superior -->
+  <nav class="navbar">
+    <a href="index.html" class="btn-back">← Volver al Dashboard</a>
+    <span class="user-info">Buscador de Pedidos</span>
+  </nav>
+
+  <!-- Contenido principal -->
+  <div class="container">
+    <h1>Buscar Producto Registrado</h1>
+    
+    <div class="search-box">
+      <input type="text" id="input-buscar" placeholder="Ingresa el nombre del producto...">
+      <button id="btn-buscar">Buscar</button>
+    </div>
+
+    <!-- Contenedor donde se pintarán los resultados -->
+    <div id="resultados-container">
+      <p class="no-results">Usa el buscador para encontrar productos registrados.</p>
+    </div>
+  </div>
+
+  <!-- Lógica de Firestore para Buscar -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-auth.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCrZ3DJhbH6alhDq8QrxBLeAuq7Tq1Lv_Y",
+      authDomain: "tpss-410c5.firebaseapp.com",
+      projectId: "tpss-410c5",
+      storageBucket: "tpss-410c5.firebasestorage.app",
+      messagingSenderId: "444769195783",
+      appId: "1:444769195783:web:aa9456e7388d6e0b4b17a2",
+      measurementId: "G-HT55JW0PRX"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const inputBuscar = document.getElementById('input-buscar');
+    const btnBuscar = document.getElementById('btn-buscar');
+    const resultadosContainer = document.getElementById('resultados-container');
+
+    // Proteger ruta: si no hay sesión, regresa al login
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        window.location.href = "login.html";
+      }
+    });
+
+    // Función encargada de buscar en Firestore
+    async function realizarBusqueda() {
+      const termino = inputBuscar.value.trim().toLowerCase();
+      
+      if (termino === "") {
+        resultadosContainer.innerHTML = `<p class="no-results">Por favor, escribe un nombre para buscar.</p>`;
+        return;
+      }
+
+      resultadosContainer.innerHTML = `<p class="no-results">Buscando productos...</p>`;
+
+      try {
+        const querySnapshot = await getDocs(collection(db, "pedidos"));
+        let encontrados = [];
+
+        querySnapshot.forEach((doc) => {
+          const producto = doc.data();
+          // Filtramos localmente para buscar coincidencias parciales con el nombre
+          if (producto.nombre && producto.nombre.toLowerCase().includes(termino)) {
+            encontrados.push(producto);
+          }
+        });
+
+        if (encontrados.length > 0) {
+          resultadosContainer.innerHTML = ""; // Limpiar antes de mostrar
+          
+          encontrados.forEach((prod) => {
+            const card = document.createElement('div');
+            card.className = "resultado-card";
+            
+            card.innerHTML = `
+              <img src="${prod.imagen}" alt="${prod.nombre}" onerror="this.src='https://via.placeholder.com/120?text=Sin+Imagen'">
+              <div class="resultado-info">
+                <h3>${prod.nombre}</h3>
+                <p><strong>Precio:</strong> $${prod.precio.toFixed(2)}</p>
+                <p><strong>Marca:</strong> ${prod.marca}</p>
+                <p><strong>Descripción:</strong> ${prod.descripcion}</p>
+                <p><strong>Registrado por:</strong> ${prod.creadoPor}</p>
+              </div>
+            `;
+            resultadosContainer.appendChild(card);
+          });
+        } else {
+          resultadosContainer.innerHTML = `<p class="no-results">No se encontraron productos con el nombre "${termino}".</p>`;
+        }
+
+      } catch (error) {
+        console.error("Error al buscar en Firestore:", error);
+        resultadosContainer.innerHTML = `<p class="no-results" style="color: red;">Ocurrió un error al realizar la búsqueda.</p>`;
+      }
+    }
+
+    // Eventos de búsqueda
+    btnBuscar.addEventListener('click', realizarBusqueda);
+    inputBuscar.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        realizarBusqueda();
+      }
+    });
+  </script>
+
+</body>
+</html>
