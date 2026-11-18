@@ -116,6 +116,25 @@
     .btn-submit:hover {
       background-color: #2563eb;
     }
+
+    /* Enlace de navegación inferior */
+    .nav-link-container {
+      text-align: center;
+      margin-top: 20px;
+      border-top: 1px solid #eee;
+      padding-top: 15px;
+    }
+
+    .btn-link {
+      color: #3b82f6;
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .btn-link:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -152,13 +171,13 @@
         <textarea id="descripcion" required placeholder="Detalles del producto..."></textarea>
       </div>
 
-      <div class="form-group">
-        <label for="imagen">URL de la Imagen:</label>
-        <input type="url" id="imagen" required placeholder="https://ejemplo.com/imagen.jpg">
-      </div>
-
       <button type="submit" class="btn-submit">Guardar Pedido en Firestore</button>
     </form>
+
+    <!-- Enlace para ir a la vista de búsqueda -->
+    <div class="nav-link-container">
+      <a href="buscar.html" class="btn-link">🔍 Ir a buscar productos registrados</a>
+    </div>
   </div>
 
   <!-- Lógica de Firebase y Firestore -->
@@ -186,11 +205,9 @@
     const welcomeTitle = document.getElementById('welcome-title');
     const productForm = document.getElementById('product-form');
 
-    // Verificar si hay un usuario con sesión iniciada
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         userDisplay.textContent = user.email;
-        
         try {
           const docRef = doc(db, "usuarios", user.uid);
           const docSnap = await getDoc(docRef);
@@ -207,7 +224,6 @@
       }
     });
 
-    // Guardar los datos del formulario en Cloud Firestore
     productForm.addEventListener('submit', async (e) => {
       e.preventDefault();
 
@@ -215,29 +231,25 @@
       const precio = parseFloat(document.getElementById('precio').value);
       const marca = document.getElementById('marca').value;
       const descripcion = document.getElementById('descripcion').value;
-      const imagen = document.getElementById('imagen').value;
 
       try {
-        // Creamos un documento nuevo dentro de la colección "pedidos"
         await addDoc(collection(db, "pedidos"), {
           nombre: nombre,
           precio: precio,
           marca: marca,
           descripcion: descripcion,
-          imagen: imagen,
           creadoPor: auth.currentUser ? auth.currentUser.email : "Anónimo",
           fecha: new Date()
         });
 
         alert("¡Pedido guardado exitosamente en Firestore!");
-        productForm.reset(); // Limpiar el formulario
+        productForm.reset();
       } catch (error) {
         console.error("Error al guardar el pedido: ", error);
         alert("Hubo un error al guardar el pedido.");
       }
     });
 
-    // Acción al hacer clic en Cerrar Sesión
     btnLogout.addEventListener('click', async () => {
       try {
         await signOut(auth);
