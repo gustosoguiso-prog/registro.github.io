@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Inicio</title>
+  <title>Inicio - Dashboard</title>
   <style>
     * {
       margin: 0;
@@ -29,7 +29,6 @@
       border-bottom: 1px solid #e0e0e0;
     }
 
-    /* Botón de cerrar sesión en el lado izquierdo */
     .btn-logout {
       background-color: #ef4444;
       color: white;
@@ -51,26 +50,71 @@
       color: #555;
     }
 
-    /* Contenido principal */
+    /* Contenedor principal */
     .container {
-      max-width: 800px;
-      margin: 50px auto;
-      padding: 40px;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 30px;
       background: white;
-      border-radius: 4px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
       border: 1px solid #e0e0e0;
-      text-align: center;
     }
 
     h1 {
       font-weight: 500;
-      margin-bottom: 15px;
+      margin-bottom: 10px;
+      text-align: center;
     }
 
     p {
       color: #666;
-      font-size: 15px;
+      font-size: 14px;
+      text-align: center;
+      margin-bottom: 25px;
+    }
+
+    /* Estilos del formulario de pedidos */
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      height: 80px;
+    }
+
+    .btn-submit {
+      width: 100%;
+      background-color: #3b82f6;
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      transition: background 0.2s;
+    }
+
+    .btn-submit:hover {
+      background-color: #2563eb;
     }
   </style>
 </head>
@@ -78,24 +122,50 @@
 
   <!-- Barra superior -->
   <nav class="navbar">
-    <!-- Opción en el lado izquierdo -->
     <button id="btn-logout" class="btn-logout">Cerrar Sesión</button>
-    
-    <!-- Información opcional a la derecha -->
     <span id="user-display" class="user-info">Cargando usuario...</span>
   </nav>
 
-  <!-- Contenido de la página -->
+  <!-- Contenido principal con Formulario para pedidos -->
   <div class="container">
     <h1 id="welcome-title">Bienvenido</h1>
-    <p>Has iniciado sesión correctamente en el sistema.</p>
+    <p>Registra un nuevo producto o pedido en el sistema.</p>
+
+    <form id="product-form">
+      <div class="form-group">
+        <label for="nombre">Nombre del Producto:</label>
+        <input type="text" id="nombre" required placeholder="Ej. Zapatillas deportivas">
+      </div>
+
+      <div class="form-group">
+        <label for="precio">Precio ($):</label>
+        <input type="number" step="0.01" id="precio" required placeholder="Ej. 59.99">
+      </div>
+
+      <div class="form-group">
+        <label for="marca">Marca:</label>
+        <input type="text" id="marca" required placeholder="Ej. Nike">
+      </div>
+
+      <div class="form-group">
+        <label for="descripcion">Descripción:</label>
+        <textarea id="descripcion" required placeholder="Detalles del producto..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="imagen">URL de la Imagen:</label>
+        <input type="url" id="imagen" required placeholder="https://ejemplo.com/imagen.jpg">
+      </div>
+
+      <button type="submit" class="btn-submit">Guardar Pedido en Firestore</button>
+    </form>
   </div>
 
-  <!-- Lógica de Firebase -->
+  <!-- Lógica de Firebase y Firestore -->
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
-    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCrZ3DJhbH6alhDq8QrxBLeAuq7Tq1Lv_Y",
@@ -114,13 +184,13 @@
     const btnLogout = document.getElementById('btn-logout');
     const userDisplay = document.getElementById('user-display');
     const welcomeTitle = document.getElementById('welcome-title');
+    const productForm = document.getElementById('product-form');
 
     // Verificar si hay un usuario con sesión iniciada
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         userDisplay.textContent = user.email;
         
-        // Obtener el nombre desde Firestore
         try {
           const docRef = doc(db, "usuarios", user.uid);
           const docSnap = await getDoc(docRef);
@@ -133,8 +203,37 @@
           console.error("Error al obtener datos del usuario:", error);
         }
       } else {
-        // Si no está logueado, redirigir al login
         window.location.href = "login.html";
+      }
+    });
+
+    // Guardar los datos del formulario en Cloud Firestore
+    productForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const nombre = document.getElementById('nombre').value;
+      const precio = parseFloat(document.getElementById('precio').value);
+      const marca = document.getElementById('marca').value;
+      const descripcion = document.getElementById('descripcion').value;
+      const imagen = document.getElementById('imagen').value;
+
+      try {
+        // Creamos un documento nuevo dentro de la colección "pedidos"
+        await addDoc(collection(db, "pedidos"), {
+          nombre: nombre,
+          precio: precio,
+          marca: marca,
+          descripcion: descripcion,
+          imagen: imagen,
+          creadoPor: auth.currentUser ? auth.currentUser.email : "Anónimo",
+          fecha: new Date()
+        });
+
+        alert("¡Pedido guardado exitosamente en Firestore!");
+        productForm.reset(); // Limpiar el formulario
+      } catch (error) {
+        console.error("Error al guardar el pedido: ", error);
+        alert("Hubo un error al guardar el pedido.");
       }
     });
 
